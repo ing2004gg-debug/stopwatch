@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>2027 정상 도전 스톱워치</title>
+<style>
+  :root {
+    --ink: #f6f2ea;
+    --ink-2: #b6b0c6;
+    --ink-3: #6d6884;
+    --line: rgba(255,255,255,.09);
+    --surface: rgba(255,255,255,.05);
+    --gold: #ffc96b;
+    --gold-2: #ff9446;
+    --snow: #eef1fb;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { min-height: 100%; }
+  body {
+    font-family: -apple-system, "Segoe UI", "Pretendard", "Malgun Gothic", sans-serif;
+    color: var(--ink);
+    background: linear-gradient(180deg, #0b0d1f 0%, #1b1640 45%, #3a2350 75%, #6b3448 100%) fixed;
+    display: grid; place-items: center;
+    padding: 16px;
+    -webkit-font-smoothing: antialiased;
+  }
+  .stars { position: fixed; inset: 0 0 40% 0; pointer-events: none; }
+  .stars i { position: absolute; width: 2px; height: 2px; border-radius: 50%; background: #fff; animation: tw 5s ease-in-out infinite; }
+  @keyframes tw { 50% { opacity: .15; } }
+
+  .card {
+    position: relative; width: 100%; max-width: 420px;
+    background: linear-gradient(180deg, rgba(20,18,44,.75), rgba(20,18,44,.55));
+    border: 1px solid var(--line); border-radius: 28px;
+    box-shadow: 0 30px 80px rgba(0,0,0,.5);
+    backdrop-filter: blur(14px);
+    overflow: hidden;
+  }
+
+  /* 헤더 */
+  header { display: flex; justify-content: space-between; align-items: flex-start; padding: 24px 24px 0; }
+  .year {
+    font-size: 40px; font-weight: 800; letter-spacing: -0.04em; line-height: .95;
+    background: linear-gradient(135deg, #fff1d2, var(--gold) 50%, var(--gold-2));
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+  }
+  .tagline { margin-top: 6px; font-size: 13px; color: var(--ink-2); }
+  .dday { text-align: right; font-size: 11px; color: var(--ink-2); letter-spacing: .04em; }
+  .dday b { display: block; font-size: 22px; color: var(--ink); font-weight: 700; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+
+  /* 산 */
+  .scene { position: relative; margin-top: 8px; }
+  .scene::after {
+    content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 14px; pointer-events: none;
+    background: linear-gradient(180deg, transparent, rgba(22,20,46,.95));
+  }
+  .scene svg { display: block; width: 100%; height: auto; }
+  .alt-tag {
+    position: absolute; transform: translate(-50%, -150%);
+    background: var(--gold); color: #24170a; font-size: 11px; font-weight: 800;
+    padding: 3px 7px; border-radius: 6px; white-space: nowrap; font-variant-numeric: tabular-nums;
+    transition: left .5s cubic-bezier(.3,.7,.3,1), top .5s cubic-bezier(.3,.7,.3,1);
+    box-shadow: 0 4px 12px rgba(0,0,0,.35);
+  }
+  .alt-tag.side { transform: translate(calc(-100% - 12px), -50%); }
+  .alt-tag.side::after { left: auto; right: -4px; bottom: auto; top: 50%; transform: translateY(-50%); border: 4px solid transparent; border-right: 0; border-left-color: var(--gold); }
+  .alt-tag::after { content: ""; position: absolute; left: 50%; bottom: -4px; transform: translateX(-50%); border: 4px solid transparent; border-bottom: 0; border-top-color: var(--gold); }
+  .flag { transform-origin: 0 50%; animation: wave 2.4s ease-in-out infinite; }
+  @keyframes wave { 50% { transform: skewY(-6deg) scaleX(.92); } }
+  .summit .flag { animation-duration: .8s; }
+  #marker { transition: transform .5s cubic-bezier(.3,.7,.3,1); }
+  #trailDone { transition: stroke-dashoffset .5s cubic-bezier(.3,.7,.3,1); }
+
+  .body { padding: 0 24px 22px; }
+
+  /* 목표 */
+  .goals { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin: 8px 0 14px; }
+  .chip {
+    border: 1px solid var(--line); background: var(--surface); color: var(--ink-2);
+    font: inherit; font-size: 13px; font-weight: 600; border-radius: 14px; cursor: pointer;
+    padding: 9px 4px 8px; display: flex; flex-direction: column; align-items: center; gap: 2px;
+    transition: background .2s, color .2s, border-color .2s;
+  }
+  .chip .ic { font-size: 18px; line-height: 1; }
+  .chip .pc { font-size: 10px; color: var(--ink-3); font-variant-numeric: tabular-nums; }
+  .chip:hover:not(:disabled) { border-color: rgba(255,255,255,.22); color: var(--ink); }
+  .chip.active { background: rgba(255,201,107,.14); border-color: var(--gold); color: var(--ink); }
+  .chip.active .pc { color: var(--gold); }
+  .chip:disabled { opacity: .55; cursor: not-allowed; filter: saturate(.5); }
+  .chip:focus-visible, .btn:focus-visible { outline: 2px solid var(--gold); outline-offset: 3px; }
+
+  /* 시간 */
+  .clock { text-align: center; margin-bottom: 16px; }
+  .time { font-variant-numeric: tabular-nums; font-size: clamp(44px, 7vh, 58px); font-weight: 250; letter-spacing: -0.03em; line-height: 1; }
+  .time .cs { font-size: .55em; color: var(--ink-2); }
+  .remain { margin-top: 10px; font-size: 13px; color: var(--ink-2); min-height: 1.3em; font-variant-numeric: tabular-nums; }
+  .remain b { color: var(--gold); font-weight: 700; }
+
+  /* 버튼 */
+  .controls { display: grid; grid-template-columns: 1fr 1.5fr; gap: 10px; }
+  .btn { height: 56px; border: 0; border-radius: 16px; font: inherit; font-size: 16px; font-weight: 700; cursor: pointer; transition: transform .06s, opacity .2s, background .2s; }
+  .btn:active:not(:disabled) { transform: scale(.97); }
+  .btn:disabled { opacity: .5; cursor: default; }
+  .secondary:not(:disabled) { border-color: var(--gold); color: var(--gold); }
+  .primary { background: linear-gradient(135deg, var(--gold), var(--gold-2)); color: #24170a; box-shadow: 0 10px 28px rgba(255,148,70,.3); }
+  .primary.running { background: var(--snow); color: #1b1640; box-shadow: none; }
+  .secondary { background: var(--surface); color: var(--ink); border: 1px solid var(--line); }
+
+  .foot { display: flex; justify-content: space-between; align-items: center; margin-top: 16px; font-size: 11px; color: var(--ink-3); }
+  .foot button { background: none; border: 0; font: inherit; color: var(--ink-3); cursor: pointer; text-decoration: underline; text-underline-offset: 2px; }
+  .foot button:hover { color: var(--ink-2); }
+  kbd { font: 600 10px/1 ui-monospace, Consolas, monospace; padding: 2px 5px; border-radius: 4px; border: 1px solid var(--line); color: var(--ink-2); }
+
+  .toast {
+    position: absolute; left: 50%; top: 18px; transform: translate(-50%, -20px); opacity: 0;
+    background: var(--gold); color: #24170a; font-weight: 800; font-size: 14px;
+    padding: 10px 16px; border-radius: 999px; transition: all .35s; pointer-events: none; white-space: nowrap;
+  }
+  .toast.show { opacity: 1; transform: translate(-50%, 0); }
+  @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+</style>
+</head>
+<body>
+  <div class="stars" id="stars" aria-hidden="true"></div>
+
+  <main class="card" id="card">
+    <div class="toast" id="toast" role="status"></div>
+    <header>
+      <div>
+        <div class="year">2027</div>
+        <div class="tagline">정상까지, 매일 한 걸음</div>
+      </div>
+      <div class="dday" id="dday"></div>
+    </header>
+
+    <div class="scene" id="scene">
+      <svg viewBox="-40 -4 440 234" aria-hidden="true">
+        <defs>
+          <linearGradient id="mtn" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stop-color="#5a4a8a"/><stop offset="1" stop-color="#1c1838"/>
+          </linearGradient>
+          <linearGradient id="mtnBack" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stop-color="#3b3266"/><stop offset="1" stop-color="#1a1636"/>
+          </linearGradient>
+          <linearGradient id="glow" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stop-color="#ff9446" stop-opacity="0"/><stop offset="1" stop-color="#ff9446" stop-opacity=".28"/>
+          </linearGradient>
+          <linearGradient id="trailG" x1="0" y1="1" x2="0" y2="0">
+            <stop offset="0" stop-color="#ff9446"/><stop offset="1" stop-color="#ffe2a8"/>
+          </linearGradient>
+          <filter id="blur"><feGaussianBlur stdDeviation="3"/></filter>
+        </defs>
+        <rect x="-50" y="110" width="460" height="125" fill="url(#glow)"/>
+        <!-- 뒷산 -->
+        <path d="M-50 230 L-50 150 L-10 118 L30 140 L60 105 L95 135 L125 112 L170 175 L120 230Z" fill="url(#mtnBack)" opacity=".85"/>
+        <path d="M200 230 L250 118 L280 140 L318 96 L352 128 L380 110 L410 135 L410 230Z" fill="url(#mtnBack)" opacity=".85"/>
+        <!-- 주봉 -->
+        <path d="M20 230 L180 26 L340 230Z" fill="url(#mtn)"/>
+        <path d="M180 26 L340 230 L250 230 L215 150 L230 120Z" fill="#000" opacity=".2"/>
+        <path d="M180 26 L20 230 L60 230 L120 140 L150 95Z" fill="#fff" opacity=".05"/>
+        <path d="M180 26 L215 150" stroke="rgba(255,255,255,.12)" stroke-width="1" fill="none"/>
+        <path d="M180 26 L158 54 L167 50 L174 59 L183 49 L192 58 L201 53Z" fill="var(--snow)"/>
+        <!-- 등산로 -->
+        <path id="trail" d="M150 222 L232 182 L122 146 L212 112 L152 84 L196 58 L180 30"
+              fill="none" stroke="rgba(255,255,255,.28)" stroke-width="2" stroke-dasharray="3 5" stroke-linecap="round" stroke-linejoin="round"/>
+        <path id="trailDone" d="M150 222 L232 182 L122 146 L212 112 L152 84 L196 58 L180 30"
+              fill="none" stroke="url(#trailG)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+        <!-- 캠프 표시 -->
+        <g font-size="8" fill="rgba(255,255,255,.55)" font-weight="700" letter-spacing=".5">
+          <text x="150" y="225" text-anchor="end" dx="-12">BASE</text>
+          <circle cx="150" cy="222" r="3" fill="rgba(255,255,255,.55)"/>
+          <g id="camps"></g>
+        </g>
+        <!-- 정상 깃발 -->
+        <g id="summitFlag">
+          <line x1="180" y1="28" x2="180" y2="2" stroke="var(--snow)" stroke-width="1.6"/>
+          <g transform="translate(181 3)"><g class="flag">
+            <path d="M0 0 H30 L25 6.5 L30 13 H0Z" fill="var(--gold)"/>
+            <text x="13" y="9.8" font-size="7.5" font-weight="800" text-anchor="middle" fill="#24170a">2027</text>
+          </g></g>
+        </g>
+        <!-- 등반자 -->
+        <g id="marker">
+          <circle r="9" fill="var(--gold)" opacity=".35" filter="url(#blur)"/>
+          <circle r="5" fill="var(--gold)" stroke="#24170a" stroke-width="1.5"/>
+        </g>
+      </svg>
+      <div class="alt-tag" id="altTag">0%</div>
+    </div>
+
+    <div class="body">
+      <div class="goals" id="goals" role="radiogroup" aria-label="목표 선택"></div>
+
+      <div class="clock">
+        <div class="time" id="time" role="timer" aria-label="이번 세션 시간">00:00<span class="cs">.00</span></div>
+        <div class="remain" id="remain"></div>
+      </div>
+
+      <div class="controls">
+        <button class="btn secondary" id="saveBtn" disabled>기록 저장</button>
+        <button class="btn primary" id="startBtn">출발</button>
+      </div>
+
+      <div class="foot">
+        <span><kbd>Space</kbd> 출발/쉬기 <kbd>Enter</kbd> 저장 <kbd>1-4</kbd> 목표</span>
+        <button id="clearBtn">이번 주 초기화</button>
+      </div>
+    </div>
+  </main>
+
+<script>
+  const $ = id => document.getElementById(id);
+  const GOALS = [
+    { id: 'run',  icon: '🏃', name: '운동',   weekly: 180 },
+    { id: 'read', icon: '📚', name: '독서',   weekly: 210 },
+    { id: 'lang', icon: '🗣️', name: '외국어', weekly: 150 },
+    { id: 'calm', icon: '🧘', name: '명상',   weekly: 70  },
+  ];
+
+  // 주 단위 저장 (월요일 기준)
+  function weekKey(d = new Date()) {
+    const m = new Date(d.getFullYear(), d.getMonth(), d.getDate() - ((d.getDay() + 6) % 7));
+    return `${m.getFullYear()}-${m.getMonth() + 1}-${m.getDate()}`;
+  }
+  const KEY = 'summit2027';
+  let all = {};
+  try { all = JSON.parse(localStorage.getItem(KEY) || '{}'); } catch {}
+  const wk = weekKey();
+  all[wk] ||= {};
+  let store = all[wk];
+  const persist = () => { try { localStorage.setItem(KEY, JSON.stringify(all)); } catch {} };
+
+  // 별
+  for (let i = 0; i < 70; i++) {
+    const s = document.createElement('i');
+    s.style.cssText = `left:${Math.random()*100}%;top:${Math.random()*100}%;opacity:${(.2+Math.random()*.7).toFixed(2)};animation-delay:${(Math.random()*5).toFixed(1)}s`;
+    $('stars').appendChild(s);
+  }
+
+  // D-day
+  (() => {
+    const now = new Date(), t = new Date(2027, 0, 1);
+    const d = Math.ceil((t - new Date(now.getFullYear(), now.getMonth(), now.getDate())) / 864e5);
+    $('dday').innerHTML = d > 0 ? `2027 출발까지<b>D-${d}</b>` : `2027 등반<b>${1 - d}일째</b>`;
+  })();
+
+  const trail = $('trail'), done = $('trailDone'), marker = $('marker'), altTag = $('altTag');
+  const LEN = trail.getTotalLength();
+  done.style.strokeDasharray = LEN;
+
+  // 25·50·75% 캠프를 실제 경로 길이 기준으로 배치 (라벨은 산 바깥쪽, 어두운 테두리로 가독성 확보)
+  const CAMPS = [.25, .5, .75];
+  CAMPS.forEach(f => {
+    const p = trail.getPointAtLength(LEN * f);
+    const right = p.x > 180;
+    $('camps').insertAdjacentHTML('beforeend',
+      `<g class="camp" data-f="${f}"><circle cx="${p.x}" cy="${p.y}" r="2.4" fill="rgba(255,255,255,.6)"/>` +
+      `<text x="${right ? 300 : 60}" y="${p.y + 3}" text-anchor="${right ? 'start' : 'end'}" ` +
+      `style="paint-order:stroke;stroke:#1c1838;stroke-width:3px">${f * 100}%</text>` +
+      `<line x1="${right ? p.x + 5 : p.x - 5}" y1="${p.y}" x2="${right ? 296 : 64}" y2="${p.y}" stroke="rgba(255,255,255,.18)" stroke-dasharray="1 3"/></g>`);
+  });
+
+  let goal = null, running = false, t0 = 0, elapsed = 0, raf = null, lastP = -1;
+  const pad = n => String(n).padStart(2, '0');
+  const cur = () => running ? elapsed + performance.now() - t0 : elapsed;
+  const goalObj = () => GOALS.find(g => g.id === goal);
+  const progress = g => Math.min(1, ((store[g.id] || 0) + (g.id === goal ? cur() : 0)) / (g.weekly * 6e4));
+  function hms(ms) { const s = Math.ceil(ms / 1000); return `${Math.floor(s/3600)}:${pad(Math.floor(s/60)%60)}:${pad(s%60)}`; }
+
+  function placeMarker(p) {
+    const pt = trail.getPointAtLength(LEN * p);
+    marker.setAttribute('transform', `translate(${pt.x} ${pt.y})`);
+    done.style.strokeDashoffset = LEN * (1 - p);
+    // SVG 좌표 → 화면 좌표 (레터박스·스케일 모두 반영)
+    const svg = trail.ownerSVGElement, sp = svg.createSVGPoint();
+    sp.x = pt.x; sp.y = pt.y;
+    const scr = sp.matrixTransform(svg.getScreenCTM()), sc = $('scene').getBoundingClientRect();
+    altTag.style.left = (scr.x - sc.left) + 'px';
+    altTag.style.top = (scr.y - sc.top) + 'px';
+    altTag.textContent = p >= 1 ? '정상 🚩' : `${Math.floor(p * 100)}%`;
+    altTag.style.visibility = goal ? 'visible' : 'hidden';
+    altTag.classList.toggle('side', p >= 1);
+    $('scene').classList.toggle('summit', p >= 1);
+    // 통과한 캠프는 금색으로
+    document.querySelectorAll('.camp').forEach(c => {
+      const reached = p >= +c.dataset.f;
+      c.querySelector('circle').setAttribute('fill', reached ? 'var(--gold)' : 'rgba(255,255,255,.6)');
+      c.querySelector('text').setAttribute('fill', reached ? 'var(--gold)' : 'rgba(255,255,255,.55)');
+    });
+  }
+
+  function renderGoals() {
+    const box = $('goals'); box.innerHTML = '';
+    GOALS.forEach((g, i) => {
+      const b = document.createElement('button');
+      b.className = 'chip' + (goal === g.id ? ' active' : '');
+      b.setAttribute('role', 'radio'); b.setAttribute('aria-checked', goal === g.id);
+      b.disabled = running && goal !== g.id;
+      const p = progress(g);
+      b.innerHTML = `<span class="ic">${g.icon}</span>${g.name}<span class="pc">${p >= 1 ? '🚩 정상' : Math.floor(p*100) + '%'}</span>`;
+      b.onclick = () => selectGoal(g.id);
+      box.appendChild(b);
+    });
+  }
+
+  function render() {
+    const t = cur();
+    const cs = Math.floor(t/10)%100, s = Math.floor(t/1000)%60, m = Math.floor(t/6e4)%60, h = Math.floor(t/36e5);
+    $('time').innerHTML = `${h ? h + ':' : ''}${pad(m)}:${pad(s)}<span class="cs">.${pad(cs)}</span>`;
+    const g = goalObj();
+    const p = g ? progress(g) : 0;
+    if (Math.abs(p - lastP) > 0.0005) { placeMarker(p); lastP = p; }
+    const r = $('remain');
+    if (!g) r.textContent = '오를 목표를 하나 고르세요';
+    else if (p >= 1) r.innerHTML = `<b>이번 주 ${g.name} 정상 도달!</b> 더 높이 가 볼까요?`;
+    else r.innerHTML = `이번 주 ${g.name} 정상까지 <b>${hms(g.weekly*6e4 - (store[g.id]||0) - t)}</b>`;
+  }
+  function loop() { render(); raf = requestAnimationFrame(loop); }
+
+  function selectGoal(id) {
+    if (running || goal === id) return;
+    if (elapsed > 0) commit();
+    goal = id; lastP = -1;
+    renderGoals(); render(); update();
+  }
+  function startStop() {
+    if (!goal) { toast('먼저 오를 목표를 골라 주세요'); return; }
+    if (running) { elapsed = cur(); running = false; cancelAnimationFrame(raf); render(); }
+    else { t0 = performance.now(); running = true; loop(); }
+    update(); renderGoals();
+  }
+  function commit() {
+    if (!goal || elapsed <= 0) return;
+    const g = goalObj(), before = progress(g);
+    store[goal] = (store[goal] || 0) + elapsed; elapsed = 0; persist();
+    const after = progress(g);
+    toast(before < 1 && after >= 1 ? `🚩 ${g.name} 정상 정복!` : `${g.name} 기록 저장 · ${Math.floor(after*100)}%`);
+    render(); renderGoals(); update();
+  }
+  function update() {
+    $('startBtn').textContent = running ? '잠깐 쉬기' : (elapsed ? '다시 오르기' : '출발');
+    $('startBtn').classList.toggle('running', running);
+    $('saveBtn').disabled = running || elapsed === 0;
+  }
+  let tt;
+  function toast(msg) { const el = $('toast'); el.textContent = msg; el.classList.add('show'); clearTimeout(tt); tt = setTimeout(() => el.classList.remove('show'), 2200); }
+
+  $('startBtn').onclick = startStop;
+  $('saveBtn').onclick = commit;
+  $('clearBtn').onclick = () => {
+    if (!confirm('이번 주 모든 목표의 기록을 지울까요?')) return;
+    for (const k in store) delete store[k];
+    persist(); lastP = -1; render(); renderGoals();
+  };
+  document.addEventListener('keydown', e => {
+    if (e.repeat) return;
+    if (e.code === 'Space') { e.preventDefault(); startStop(); }
+    else if (e.key === 'Enter' && !running && elapsed > 0) { e.preventDefault(); commit(); }
+    else if (/^[1-4]$/.test(e.key)) selectGoal(GOALS[+e.key - 1].id);
+  });
+  setInterval(() => running && renderGoals(), 1000);
+  addEventListener('resize', () => { lastP = -1; render(); });
+
+  renderGoals(); render(); update();
+</script>
+</body>
+</html>
